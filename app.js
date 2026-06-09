@@ -109,6 +109,9 @@ const MEDICINE_PRESET = {
 const HF_DATASETS_API = "https://huggingface.co/api/datasets";
 const HF_DEFAULT_LIMIT = 100;
 const HF_SEARCH_LIMIT = 60;
+const RECIPE_COUNTER_STORAGE_KEY = "dataRecipeUniqueRecipeCount";
+const RECIPE_COUNTER_MIN = 530;
+const RECIPE_COUNTER_TICK_MS = 5000;
 const COLOR_PALETTE = [
   "#2f6fe5",
   "#de5e40",
@@ -210,6 +213,7 @@ const performanceGradeEl = document.getElementById("performanceGrade");
 const performanceSummaryEl = document.getElementById("performanceSummary");
 const performanceAxesEl = document.getElementById("performanceAxes");
 const performanceNotesEl = document.getElementById("performanceNotes");
+const recipeCountEl = document.getElementById("recipeCount");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -248,6 +252,41 @@ function normalizeFamilyKey(value) {
     .toLowerCase()
     .replace(/[_-]+/g, " ")
     .trim();
+}
+
+function readRecipeCounter() {
+  try {
+    const raw = window.localStorage.getItem(RECIPE_COUNTER_STORAGE_KEY);
+    const parsed = Number.parseInt(String(raw || ""), 10);
+    if (Number.isFinite(parsed) && parsed >= RECIPE_COUNTER_MIN) {
+      return parsed;
+    }
+  } catch (_) {}
+  return RECIPE_COUNTER_MIN;
+}
+
+function writeRecipeCounter(value) {
+  try {
+    window.localStorage.setItem(RECIPE_COUNTER_STORAGE_KEY, String(value));
+  } catch (_) {}
+}
+
+function renderRecipeCounter(value) {
+  if (!recipeCountEl) return;
+  recipeCountEl.textContent = `${formatNumber(value)}+`;
+}
+
+function startRecipeCounterTicker() {
+  let counter = readRecipeCounter();
+  renderRecipeCounter(counter);
+  writeRecipeCounter(counter);
+
+  window.setInterval(() => {
+    const delta = Math.random() < 0.5 ? 1 : 2;
+    counter += delta;
+    renderRecipeCounter(counter);
+    writeRecipeCounter(counter);
+  }, RECIPE_COUNTER_TICK_MS);
 }
 
 function pickColorFromId(id) {
@@ -1195,6 +1234,7 @@ searchInputEl.value = "";
 if (usageProfileSelectEl) usageProfileSelectEl.value = state.usageProfile;
 if (licenseFilterSelectEl) licenseFilterSelectEl.value = state.licenseFilter;
 if (compatibleOnlyToggleEl) compatibleOnlyToggleEl.checked = state.showCompatibleOnly;
+startRecipeCounterTicker();
 render();
 syncHFDatasets();
 

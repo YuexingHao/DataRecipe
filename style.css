@@ -282,6 +282,10 @@ header .nav a.cta:hover {
   color: var(--green-2);
 }
 
+.live-badge strong {
+  color: #2a6e4d;
+}
+
 .badge-label {
   font: 500 11px var(--sans);
   text-transform: uppercase;
