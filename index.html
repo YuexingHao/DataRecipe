@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DataRecipe | Dataset Mix Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="glow"></div>
+    <main class="layout">
+      <section class="panel hero">
+        <p class="eyebrow">Data Pipeline Design</p>
+        <h1>DataRecipe</h1>
+        <p class="subtitle">
+          Build weighted dataset recipes for post-training and fine-tuning. Pick
+          datasets from storage, tune percentages, and export a ready-to-run
+          configuration.
+        </p>
+        <div class="hero-controls">
+          <label>
+            Training mode
+            <select id="modeSelect">
+              <option value="post_training">Post-training</option>
+              <option value="fine_tuning">Fine-tuning</option>
+            </select>
+          </label>
+          <label>
+            Target model or API
+            <input id="modelInput" type="text" value="open-model-8b" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel mix">
+        <div class="panel-header">
+          <h2>Recipe Mixer</h2>
+          <div class="preset-row">
+            <button id="medicinePreset" class="accent">Load Medicine Preset</button>
+            <button id="resetWeights">Rebalance</button>
+          </div>
+        </div>
+
+        <div class="bar-wrap">
+          <div id="allocationBar" class="allocation-bar" aria-label="dataset allocation bar"></div>
+        </div>
+        <p class="hint">
+          Drag the divider handles on the bar or use each slider below. Total is locked to 100%.
+        </p>
+
+        <div id="activeList" class="active-list"></div>
+      </section>
+
+      <section class="panel library">
+        <div class="panel-header">
+          <h2>Dataset Library</h2>
+          <input id="searchInput" type="search" placeholder="Search datasets" />
+        </div>
+        <div id="datasetGrid" class="dataset-grid"></div>
+      </section>
+
+      <section class="panel output">
+        <div class="panel-header">
+          <h2>Recipe Output</h2>
+          <button id="copyJson">Copy JSON</button>
+        </div>
+        <pre id="recipeOutput"></pre>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
