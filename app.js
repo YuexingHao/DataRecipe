@@ -131,6 +131,51 @@ const LICENSE_COMPATIBILITY = {
   student: new Set(["permissive", "non_commercial", "research_only", "internal"]),
 };
 
+const PERFORMANCE_AXES = [
+  { id: "domain_alignment", label: "Domain Alignment" },
+  { id: "reasoning", label: "Reasoning" },
+  { id: "factuality", label: "Factuality" },
+  { id: "instruction_following", label: "Instruction Following" },
+  { id: "safety_compliance", label: "Safety & Compliance" },
+  { id: "robustness", label: "Robustness" },
+];
+
+const BASE_AXIS_SCORES = {
+  domain_alignment: 48,
+  reasoning: 50,
+  factuality: 49,
+  instruction_following: 47,
+  safety_compliance: 46,
+  robustness: 45,
+};
+
+const DOMAIN_SIGNAL = {
+  medicine: { domain_alignment: 18, factuality: 10, safety_compliance: 8, reasoning: 3 },
+  finance: { domain_alignment: 14, reasoning: 7, factuality: 8, safety_compliance: 4 },
+  law: { domain_alignment: 14, reasoning: 8, factuality: 7, safety_compliance: 10 },
+  coding: { reasoning: 10, instruction_following: 8, robustness: 6, factuality: 3 },
+  math: { reasoning: 14, robustness: 6, factuality: 4, domain_alignment: 4 },
+  general: { domain_alignment: 6, instruction_following: 5, robustness: 5, factuality: 3 },
+};
+
+const FAMILY_SIGNAL = {
+  benchmark: { reasoning: 14, robustness: 10, factuality: 6, domain_alignment: 3 },
+  qa: { factuality: 10, instruction_following: 7, reasoning: 6, domain_alignment: 5 },
+  journal: { factuality: 12, safety_compliance: 6, instruction_following: 5, domain_alignment: 6 },
+  literature: { factuality: 9, instruction_following: 7, domain_alignment: 5, robustness: 4 },
+  exam: { reasoning: 11, domain_alignment: 8, robustness: 6, factuality: 6 },
+  "text generation": { instruction_following: 11, robustness: 5, reasoning: 4 },
+  "question answering": { factuality: 10, instruction_following: 6, reasoning: 5 },
+  "multiple choice": { reasoning: 8, factuality: 7, robustness: 5 },
+  translation: { factuality: 7, instruction_following: 6, robustness: 4 },
+  general: { instruction_following: 5, robustness: 4, reasoning: 3, domain_alignment: 3 },
+};
+
+const SOURCE_SIGNAL = {
+  internal: { factuality: 6, safety_compliance: 6, robustness: 4 },
+  huggingface: { robustness: 2, instruction_following: 2, factuality: 1 },
+};
+
 const state = {
   selected: new Set(Object.keys(MEDICINE_PRESET)),
   weights: { ...MEDICINE_PRESET },
@@ -161,6 +206,10 @@ const usageProfileSelectEl = document.getElementById("usageProfileSelect");
 const licenseFilterSelectEl = document.getElementById("licenseFilterSelect");
 const compatibleOnlyToggleEl = document.getElementById("compatibleOnlyToggle");
 const libraryStatusEl = document.getElementById("libraryStatus");
+const performanceGradeEl = document.getElementById("performanceGrade");
+const performanceSummaryEl = document.getElementById("performanceSummary");
+const performanceAxesEl = document.getElementById("performanceAxes");
+const performanceNotesEl = document.getElementById("performanceNotes");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -182,6 +231,23 @@ function trimDescription(text, maxLen = 180) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Number(value) || 0);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function addAxisSignal(target, signal, factor = 1) {
+  Object.entries(signal || {}).forEach(([axisId, axisValue]) => {
+    target[axisId] = (target[axisId] || 0) + axisValue * factor;
+  });
+}
+
+function normalizeFamilyKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .trim();
 }
 
 function pickColorFromId(id) {
@@ -534,7 +600,204 @@ function applyMedicinePreset() {
   render();
 }
 
+function computePredictedPerformance() {
+  const selected = getSelectedDatasets();
+  const axisScores = { ...BASE_AXIS_SCORES };
+  const positiveNotes = [];
+  const riskNotes = [];
+
+  if (!selected.length) {
+    return {
+      overallScore: 0,
+      grade: "--",
+      gradeBand: "risk",
+      summary: "Select datasets to estimate expected performance.",
+      axes: PERFORMANCE_AXES.map((axis) => ({ ...axis, score: 0 })),
+      notes: { positive: [], risks: [] },
+    };
+  }
+
+  const weightById = {};
+  selected.forEach((dataset) => {
+    weightById[dataset.id] = clamp(Number(state.weights[dataset.id] || 0), 0, 100) / 100;
+  });
+
+  selected.forEach((dataset) => {
+    const weightRatio = weightById[dataset.id];
+    const domainSignal = DOMAIN_SIGNAL[dataset.domain] || DOMAIN_SIGNAL.general;
+    const familySignal = FAMILY_SIGNAL[normalizeFamilyKey(dataset.family)] || FAMILY_SIGNAL.general;
+    const sourceSignal = SOURCE_SIGNAL[dataset.source] || {};
+
+    addAxisSignal(axisScores, domainSignal, weightRatio);
+    addAxisSignal(axisScores, familySignal, weightRatio * 0.9);
+    addAxisSignal(axisScores, sourceSignal, weightRatio * 0.65);
+
+    const licenseCategory = getLicenseCategory(dataset.license);
+    if (licenseCategory === "unknown") {
+      axisScores.safety_compliance -= 3 * weightRatio;
+      axisScores.robustness -= 2 * weightRatio;
+    } else if (licenseCategory === "restricted") {
+      axisScores.safety_compliance -= 4 * weightRatio;
+      axisScores.robustness -= 1.5 * weightRatio;
+    }
+
+    if (!isDatasetCompatible(dataset, state.usageProfile)) {
+      axisScores.safety_compliance -= 12 * weightRatio;
+      axisScores.robustness -= 4 * weightRatio;
+      axisScores.instruction_following -= 2 * weightRatio;
+    }
+  });
+
+  const uniqueDomains = new Set(selected.map((dataset) => dataset.domain)).size;
+  const uniqueFamilies = new Set(selected.map((dataset) => normalizeFamilyKey(dataset.family))).size;
+  const maxWeight = selected.reduce((max, dataset) => Math.max(max, state.weights[dataset.id] || 0), 0);
+  const incompatibleCount = selected.filter(
+    (dataset) => !isDatasetCompatible(dataset, state.usageProfile),
+  ).length;
+  const incompatibleWeight = selected.reduce((acc, dataset) => {
+    if (isDatasetCompatible(dataset, state.usageProfile)) return acc;
+    return acc + (state.weights[dataset.id] || 0);
+  }, 0);
+
+  if (uniqueDomains >= 3) {
+    axisScores.robustness += 6;
+    axisScores.instruction_following += 3;
+    positiveNotes.push("Diverse domains boost robustness");
+  } else if (uniqueDomains === 1) {
+    axisScores.robustness -= 4;
+    riskNotes.push("Single-domain focus may reduce robustness");
+  }
+
+  if (uniqueFamilies >= 3) {
+    axisScores.reasoning += 3;
+    axisScores.factuality += 2;
+    positiveNotes.push("Mixed task families improve generalization");
+  }
+
+  if (maxWeight >= 65) {
+    axisScores.domain_alignment += 5;
+    axisScores.robustness -= 5;
+    axisScores.instruction_following -= 2;
+    riskNotes.push("Heavy concentration on one dataset increases overfitting risk");
+  } else if (maxWeight <= 45 && selected.length >= 3) {
+    axisScores.robustness += 4;
+    positiveNotes.push("Balanced allocation supports stability");
+  }
+
+  if (modeSelectEl.value === "fine_tuning") {
+    axisScores.domain_alignment += 5;
+    axisScores.reasoning += 2;
+    axisScores.robustness -= 2;
+    positiveNotes.push("Fine-tuning improves domain specialization");
+  } else {
+    axisScores.robustness += 4;
+    axisScores.factuality += 2;
+    axisScores.instruction_following += 1;
+    positiveNotes.push("Post-training improves broad capability coverage");
+  }
+
+  if (state.usageProfile === "company") {
+    axisScores.safety_compliance += 2;
+  } else if (state.usageProfile === "student") {
+    axisScores.reasoning += 1;
+    axisScores.domain_alignment += 1;
+  } else if (state.usageProfile === "academia") {
+    axisScores.reasoning += 1;
+    axisScores.factuality += 1;
+  }
+
+  if (incompatibleCount > 0) {
+    axisScores.safety_compliance -= Math.min(8, incompatibleWeight * 0.12);
+    riskNotes.push(
+      `${incompatibleCount} selected dataset${incompatibleCount > 1 ? "s" : ""} conflict with ${state.usageProfile} licensing`,
+    );
+  }
+
+  const axes = PERFORMANCE_AXES.map((axis) => {
+    const score = clamp(Math.round(axisScores[axis.id] || 0), 0, 100);
+    return { id: axis.id, label: axis.label, score };
+  });
+
+  const overallScore = clamp(
+    Math.round(axes.reduce((acc, axis) => acc + axis.score, 0) / axes.length),
+    0,
+    100,
+  );
+
+  let grade = "C";
+  let gradeBand = "risk";
+  if (overallScore >= 78) {
+    grade = "A";
+    gradeBand = "strong";
+  } else if (overallScore >= 68) {
+    grade = "B";
+    gradeBand = "moderate";
+  }
+
+  let summary = `Projected overall score ${overallScore}/100 for ${modeSelectEl.value.replace("_", "-")} under ${state.usageProfile} profile.`;
+  if (incompatibleCount > 0) {
+    summary += ` Compliance risk detected due to incompatible licenses.`;
+  } else if (overallScore >= 78) {
+    summary += " Mix appears strong across multiple evaluation axes.";
+  } else if (overallScore >= 68) {
+    summary += " Mix is solid but has room to improve.";
+  } else {
+    summary += " Mix is high-risk and may underperform on multiple axes.";
+  }
+
+  return {
+    overallScore,
+    grade,
+    gradeBand,
+    summary,
+    axes,
+    notes: {
+      positive: [...new Set(positiveNotes)].slice(0, 4),
+      risks: [...new Set(riskNotes)].slice(0, 4),
+    },
+  };
+}
+
+function renderPerformancePanel() {
+  if (!performanceGradeEl || !performanceSummaryEl || !performanceAxesEl || !performanceNotesEl) {
+    return;
+  }
+
+  const prediction = computePredictedPerformance();
+  performanceGradeEl.textContent = prediction.grade;
+  performanceGradeEl.classList.remove("strong", "moderate", "risk");
+  performanceGradeEl.classList.add(prediction.gradeBand);
+  performanceSummaryEl.textContent = prediction.summary;
+
+  performanceAxesEl.innerHTML = "";
+  prediction.axes.forEach((axis) => {
+    const row = document.createElement("div");
+    row.className = "axis-row";
+    row.innerHTML = `
+      <div class="axis-label">${escapeHtml(axis.label)}</div>
+      <div class="axis-track"><div class="axis-fill" style="width:${axis.score}%;"></div></div>
+      <div class="axis-value">${axis.score}</div>
+    `;
+    performanceAxesEl.appendChild(row);
+  });
+
+  performanceNotesEl.innerHTML = "";
+  prediction.notes.positive.forEach((note) => {
+    const chip = document.createElement("span");
+    chip.className = "performance-note-chip pos";
+    chip.textContent = note;
+    performanceNotesEl.appendChild(chip);
+  });
+  prediction.notes.risks.forEach((note) => {
+    const chip = document.createElement("span");
+    chip.className = "performance-note-chip neg";
+    chip.textContent = note;
+    performanceNotesEl.appendChild(chip);
+  });
+}
+
 function buildRecipe() {
+  const prediction = computePredictedPerformance();
   const chosen = getSelectedDatasets().map((dataset) => ({
     dataset: dataset.name,
     dataset_id: dataset.id,
@@ -556,6 +819,18 @@ function buildRecipe() {
     incompatible_datasets_for_profile: chosen
       .filter((dataset) => !dataset.compatible_with_profile)
       .map((dataset) => dataset.dataset_id),
+    predicted_performance: {
+      overall_score: prediction.overallScore,
+      grade: prediction.grade,
+      axes: prediction.axes.map((axis) => ({
+        axis: axis.id,
+        label: axis.label,
+        score: axis.score,
+      })),
+      strengths: prediction.notes.positive,
+      risks: prediction.notes.risks,
+      summary: prediction.summary,
+    },
     datasets: chosen,
   };
 }
@@ -764,6 +1039,7 @@ function renderSummaryBadges() {
 function render() {
   renderBar();
   renderActiveList();
+  renderPerformancePanel();
   renderLibrary();
   renderOutput();
   renderSummaryBadges();
@@ -865,6 +1141,7 @@ document.addEventListener("input", (event) => {
   }
 
   if (event.target.id === "modelInput" || event.target.id === "modeSelect") {
+    renderPerformancePanel();
     renderOutput();
   }
 });

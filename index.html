@@ -91,7 +91,24 @@
             stays at 100%.
           </p>
 
-          <div id="activeList" class="active-list"></div>
+          <div class="mixer-details">
+            <div id="activeList" class="active-list"></div>
+
+            <section class="performance-panel" id="performancePanel">
+              <div class="section-head row">
+                <div>
+                  <p class="label">Projected Evaluation</p>
+                  <h3>Predicted LLM Performance</h3>
+                </div>
+                <div id="performanceGrade" class="performance-grade">--</div>
+              </div>
+              <p id="performanceSummary" class="performance-summary">
+                Select datasets to estimate expected performance.
+              </p>
+              <div id="performanceAxes" class="performance-axes"></div>
+              <div id="performanceNotes" class="performance-notes"></div>
+            </section>
+          </div>
         </section>
 
         <section class="panel" id="librarySection">
