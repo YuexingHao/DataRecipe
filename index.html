@@ -1,78 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DataRecipe | Dataset Mix Builder</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div class="glow"></div>
-    <main class="layout">
-      <section class="panel hero">
-        <p class="eyebrow">Data Pipeline Design</p>
-        <h1>DataRecipe</h1>
-        <p class="subtitle">
-          Build weighted dataset recipes for post-training and fine-tuning. Pick
-          datasets from storage, tune percentages, and export a ready-to-run
-          configuration.
-        </p>
-        <div class="hero-controls">
-          <label>
-            Training mode
-            <select id="modeSelect">
-              <option value="post_training">Post-training</option>
-              <option value="fine_tuning">Fine-tuning</option>
-            </select>
-          </label>
-          <label>
-            Target model or API
-            <input id="modelInput" type="text" value="open-model-8b" />
-          </label>
-        </div>
-      </section>
+    <div class="bg-grid" id="bgGrid" aria-hidden="true"></div>
 
-      <section class="panel mix">
-        <div class="panel-header">
-          <h2>Recipe Mixer</h2>
-          <div class="preset-row">
-            <button id="medicinePreset" class="accent">Load Medicine Preset</button>
-            <button id="resetWeights">Rebalance</button>
+    <div class="app">
+      <header class="top">
+        <a class="brand-link" href="#" aria-label="DataRecipe home">
+          <span class="brand-text"
+            >Data<span class="em">.</span><span class="small">recipe</span></span
+          >
+        </a>
+        <nav class="nav">
+          <a href="#recipeSection">recipe</a>
+          <a href="#librarySection">datasets</a>
+          <a href="#outputSection" class="cta">export mix &rarr;</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="badge-row">
+          <div class="badge">
+            <span class="pulse"></span>
+            <span class="badge-copy">
+              <strong id="selectedCount">4</strong>
+              <span class="badge-label">datasets selected</span>
+            </span>
+          </div>
+          <div class="badge neutral-badge">
+            <span class="badge-copy">
+              <strong id="totalPct">100%</strong>
+              <span class="badge-label">allocation locked</span>
+            </span>
           </div>
         </div>
 
-        <div class="bar-wrap">
-          <div id="allocationBar" class="allocation-bar" aria-label="dataset allocation bar"></div>
-        </div>
-        <p class="hint">
-          Drag the divider handles on the bar or use each slider below. Total is locked to 100%.
+        <h1>
+          Build domain-specific
+          <span class="swap-title"><span>training</span> recipes</span>
+        </h1>
+        <p class="tagline">
+          Select datasets hosted in your storage and tune the exact ratio for
+          post-training or fine-tuning pipelines.
         </p>
-
-        <div id="activeList" class="active-list"></div>
-      </section>
-
-      <section class="panel library">
-        <div class="panel-header">
-          <h2>Dataset Library</h2>
-          <input id="searchInput" type="search" placeholder="Search datasets" />
+        <div class="actions">
+          <button id="medicinePreset" class="btn-primary" type="button">
+            load medicine preset
+          </button>
+          <button id="resetWeights" class="hero-secondary" type="button">
+            rebalance equally
+          </button>
         </div>
-        <div id="datasetGrid" class="dataset-grid"></div>
       </section>
 
-      <section class="panel output">
-        <div class="panel-header">
-          <h2>Recipe Output</h2>
-          <button id="copyJson">Copy JSON</button>
-        </div>
-        <pre id="recipeOutput"></pre>
-      </section>
-    </main>
+      <main class="content-grid">
+        <section class="panel" id="recipeSection">
+          <div class="section-head">
+            <p class="label">Pipeline Controls</p>
+            <h2>Recipe Mixer</h2>
+          </div>
+
+          <div class="hero-controls">
+            <label>
+              Training mode
+              <select id="modeSelect">
+                <option value="post_training">Post-training</option>
+                <option value="fine_tuning">Fine-tuning</option>
+              </select>
+            </label>
+            <label>
+              Target model or API
+              <input id="modelInput" type="text" value="open-model-8b" />
+            </label>
+          </div>
+
+          <div class="bar-wrap">
+            <div
+              id="allocationBar"
+              class="allocation-bar"
+              aria-label="dataset allocation bar"
+            ></div>
+          </div>
+          <p class="hint">
+            Drag divider handles or adjust per-dataset sliders. Total always
+            stays at 100%.
+          </p>
+
+          <div id="activeList" class="active-list"></div>
+        </section>
+
+        <section class="panel" id="librarySection">
+          <div class="section-head">
+            <p class="label">Storage Catalog</p>
+            <h2>Dataset Library</h2>
+          </div>
+          <div class="library-tools">
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Search Hugging Face datasets (name, tag, domain)"
+            />
+            <div class="filter-grid">
+              <label>
+                Training profile
+                <select id="usageProfileSelect">
+                  <option value="company">Company</option>
+                  <option value="academia">Academia</option>
+                  <option value="personal">Personal</option>
+                  <option value="student">Student</option>
+                </select>
+              </label>
+              <label>
+                License filter
+                <select id="licenseFilterSelect">
+                  <option value="all">All licenses</option>
+                  <option value="permissive">Permissive / commercial</option>
+                  <option value="non_commercial">Non-commercial</option>
+                  <option value="research_only">Research/academic only</option>
+                  <option value="restricted">Restricted / custom</option>
+                  <option value="unknown">Unknown</option>
+                  <option value="internal">Internal</option>
+                </select>
+              </label>
+              <label class="checkbox-line">
+                <input id="compatibleOnlyToggle" type="checkbox" />
+                Show only compatible datasets
+              </label>
+            </div>
+            <div id="libraryStatus" class="library-status"></div>
+          </div>
+          <div id="datasetGrid" class="dataset-grid"></div>
+        </section>
+
+        <section class="panel output" id="outputSection">
+          <div class="section-head row">
+            <div>
+              <p class="label">Deployment Payload</p>
+              <h2>Recipe Output</h2>
+            </div>
+            <button id="copyJson" type="button">Copy JSON</button>
+          </div>
+          <pre id="recipeOutput"></pre>
+        </section>
+      </main>
+    </div>
 
     <script src="./app.js"></script>
   </body>

@@ -1,66 +1,101 @@
-const DATASETS = [
+const BASE_DATASETS = [
   {
     id: "mmlu_precision_medicine",
+    repoId: "mmlu_precision_medicine",
     name: "MMLU (precision_medicine)",
     domain: "medicine",
     family: "benchmark",
     storage: "s3://model-data/medicine/mmlu/precision_medicine.jsonl",
     description: "Medical reasoning benchmark split.",
     color: "#2f6fe5",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "jama",
+    repoId: "jama",
     name: "JAMA",
     domain: "medicine",
     family: "journal",
     storage: "s3://model-data/medicine/jama/curated_articles.jsonl",
     description: "Clinical writing and evidence summaries.",
     color: "#de5e40",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "medxpertqa",
+    repoId: "medxpertqa",
     name: "MedXpertQA",
     domain: "medicine",
     family: "qa",
     storage: "s3://model-data/medicine/medxpertqa/train.jsonl",
     description: "Expert-level clinical question answering.",
     color: "#0d9f7a",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "medbullets",
+    repoId: "medbullets",
     name: "Medbullets",
     domain: "medicine",
     family: "exam",
     storage: "s3://model-data/medicine/medbullets/boards_style_qa.jsonl",
     description: "Board-style medical exam prompts.",
     color: "#9a4ec9",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "pubmed_summaries",
+    repoId: "pubmed_summaries",
     name: "PubMed Summaries",
     domain: "medicine",
     family: "literature",
     storage: "s3://model-data/medicine/pubmed/summaries.jsonl",
     description: "Biomedical paper abstracts and summaries.",
     color: "#e19a2e",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "financial_qa",
+    repoId: "financial_qa",
     name: "Financial QA",
     domain: "finance",
     family: "qa",
     storage: "s3://model-data/finance/finqa/train.jsonl",
     description: "Domain QA for finance and accounting.",
     color: "#2e9dba",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
   {
     id: "legalbench",
+    repoId: "legalbench",
     name: "LegalBench",
     domain: "law",
     family: "benchmark",
     storage: "s3://model-data/law/legalbench/cleaned.jsonl",
     description: "Legal reasoning and statutory tasks.",
     color: "#b36a33",
+    source: "internal",
+    license: "internal",
+    downloads: 0,
+    likes: 0,
   },
 ];
 
@@ -71,12 +106,47 @@ const MEDICINE_PRESET = {
   medbullets: 20,
 };
 
+const HF_DATASETS_API = "https://huggingface.co/api/datasets";
+const HF_DEFAULT_LIMIT = 100;
+const HF_SEARCH_LIMIT = 60;
+const COLOR_PALETTE = [
+  "#2f6fe5",
+  "#de5e40",
+  "#0d9f7a",
+  "#9a4ec9",
+  "#e19a2e",
+  "#2e9dba",
+  "#b36a33",
+  "#3a8756",
+  "#be4b6d",
+  "#5d67d8",
+  "#1f9b94",
+  "#d27a2c",
+];
+
+const LICENSE_COMPATIBILITY = {
+  company: new Set(["permissive", "internal"]),
+  academia: new Set(["permissive", "non_commercial", "research_only", "internal"]),
+  personal: new Set(["permissive", "non_commercial", "internal"]),
+  student: new Set(["permissive", "non_commercial", "research_only", "internal"]),
+};
+
 const state = {
   selected: new Set(Object.keys(MEDICINE_PRESET)),
   weights: { ...MEDICINE_PRESET },
   search: "",
+  usageProfile: "company",
+  licenseFilter: "all",
+  showCompatibleOnly: false,
   drag: null,
+  remoteDatasets: [],
+  libraryLoading: false,
+  libraryError: "",
+  lastFetchedCount: 0,
+  fetchToken: 0,
 };
+
+let searchFetchTimer = null;
 
 const barEl = document.getElementById("allocationBar");
 const activeListEl = document.getElementById("activeList");
@@ -85,9 +155,249 @@ const recipeOutputEl = document.getElementById("recipeOutput");
 const searchInputEl = document.getElementById("searchInput");
 const modelInputEl = document.getElementById("modelInput");
 const modeSelectEl = document.getElementById("modeSelect");
+const selectedCountEl = document.getElementById("selectedCount");
+const totalPctEl = document.getElementById("totalPct");
+const usageProfileSelectEl = document.getElementById("usageProfileSelect");
+const licenseFilterSelectEl = document.getElementById("licenseFilterSelect");
+const compatibleOnlyToggleEl = document.getElementById("compatibleOnlyToggle");
+const libraryStatusEl = document.getElementById("libraryStatus");
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function trimDescription(text, maxLen = 180) {
+  const normalized = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "No description available.";
+  if (normalized.length <= maxLen) return normalized;
+  return `${normalized.slice(0, maxLen - 3)}...`;
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("en-US").format(Number(value) || 0);
+}
+
+function pickColorFromId(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return COLOR_PALETTE[hash % COLOR_PALETTE.length];
+}
+
+function inferDomainFromText(text) {
+  if (/(medic|clinic|health|biomed|disease|pharma|doctor|hospital)/i.test(text)) {
+    return "medicine";
+  }
+  if (/(finance|account|bank|econom|stock|trading)/i.test(text)) {
+    return "finance";
+  }
+  if (/(legal|law|court|statute|contract|juris)/i.test(text)) {
+    return "law";
+  }
+  if (/(code|program|software|python|java|developer)/i.test(text)) {
+    return "coding";
+  }
+  if (/(math|algebra|geometry|calculus|proof|equation)/i.test(text)) {
+    return "math";
+  }
+  return "general";
+}
+
+function extractLicense(item, tags) {
+  if (item.cardData && item.cardData.license) {
+    return String(item.cardData.license).toLowerCase();
+  }
+  const licenseTag = tags.find((tag) => tag.startsWith("license:"));
+  if (licenseTag) {
+    return licenseTag.replace("license:", "").toLowerCase();
+  }
+  return "unknown";
+}
+
+function normalizeTaskFamily(tags) {
+  const taskTag = tags.find((tag) => tag.startsWith("task_categories:"));
+  if (!taskTag) return "general";
+  return taskTag.replace("task_categories:", "").replaceAll("-", " ");
+}
+
+function toHFDataset(item) {
+  if (!item || !item.id) return null;
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  const license = extractLicense(item, tags);
+  const searchableText = `${item.id} ${trimDescription(item.description, 400)} ${tags.join(" ")}`;
+
+  return {
+    id: item.id,
+    repoId: item.id,
+    name: item.cardData && item.cardData.pretty_name ? item.cardData.pretty_name : item.id,
+    domain: inferDomainFromText(searchableText),
+    family: normalizeTaskFamily(tags),
+    storage: `hf://datasets/${item.id}`,
+    description: trimDescription(item.description),
+    color: pickColorFromId(item.id),
+    source: "huggingface",
+    license,
+    downloads: Number(item.downloads) || 0,
+    likes: Number(item.likes) || 0,
+    lastModified: item.lastModified || "",
+    tags,
+  };
+}
+
+function mergeRemoteDatasets(newDatasets) {
+  const byId = new Map(state.remoteDatasets.map((dataset) => [dataset.id, dataset]));
+  newDatasets.forEach((dataset) => {
+    const prev = byId.get(dataset.id) || {};
+    byId.set(dataset.id, { ...prev, ...dataset });
+  });
+  state.remoteDatasets = [...byId.values()].sort((a, b) => {
+    const scoreA = (a.downloads || 0) + (a.likes || 0) * 10;
+    const scoreB = (b.downloads || 0) + (b.likes || 0) * 10;
+    return scoreB - scoreA;
+  });
+}
+
+async function syncHFDatasets(searchTerm = "") {
+  const query = String(searchTerm || "").trim();
+  const token = state.fetchToken + 1;
+  state.fetchToken = token;
+  state.libraryLoading = true;
+  state.libraryError = "";
+  renderLibraryStatus();
+
+  const params = new URLSearchParams({
+    full: "true",
+    limit: query ? String(HF_SEARCH_LIMIT) : String(HF_DEFAULT_LIMIT),
+  });
+  if (query) {
+    params.set("search", query);
+  }
+
+  try {
+    const response = await fetch(`${HF_DATASETS_API}?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (token !== state.fetchToken) {
+      return;
+    }
+
+    const mapped = payload.map(toHFDataset).filter(Boolean);
+    mergeRemoteDatasets(mapped);
+    state.lastFetchedCount = mapped.length;
+    state.libraryLoading = false;
+    state.libraryError = "";
+    render();
+  } catch (error) {
+    if (token !== state.fetchToken) {
+      return;
+    }
+    state.libraryLoading = false;
+    state.libraryError = `Hugging Face sync failed: ${error.message}`;
+    renderLibraryStatus();
+  }
+}
+
+function queueSearchSync() {
+  clearTimeout(searchFetchTimer);
+  const query = state.search.trim();
+  if (query.length < 2) return;
+  searchFetchTimer = setTimeout(() => {
+    syncHFDatasets(query);
+  }, 350);
+}
+
+function getLibraryDatasets() {
+  const merged = new Map(BASE_DATASETS.map((dataset) => [dataset.id, dataset]));
+  state.remoteDatasets.forEach((dataset) => {
+    if (!merged.has(dataset.id)) {
+      merged.set(dataset.id, dataset);
+    }
+  });
+  return [...merged.values()];
+}
+
+function getDatasetById(id) {
+  return getLibraryDatasets().find((dataset) => dataset.id === id);
+}
 
 function getSelectedDatasets() {
-  return DATASETS.filter((d) => state.selected.has(d.id));
+  const byId = new Map(getLibraryDatasets().map((dataset) => [dataset.id, dataset]));
+  return [...state.selected].map((id) => byId.get(id)).filter(Boolean);
+}
+
+function getLicenseCategory(license) {
+  const normalized = String(license || "unknown").toLowerCase();
+
+  if (!normalized || normalized === "unknown" || normalized === "n/a") {
+    return "unknown";
+  }
+  if (normalized.includes("internal")) {
+    return "internal";
+  }
+  if (
+    normalized.includes("-nc") ||
+    normalized.includes("non-commercial") ||
+    normalized.includes("noncommercial")
+  ) {
+    return "non_commercial";
+  }
+  if (
+    normalized.includes("research") ||
+    normalized.includes("academic") ||
+    normalized.includes("edu")
+  ) {
+    return "research_only";
+  }
+  if (
+    normalized.includes("other") ||
+    normalized.includes("arr") ||
+    normalized.includes("proprietary") ||
+    normalized.includes("custom") ||
+    normalized.includes("openrail")
+  ) {
+    return "restricted";
+  }
+  if (
+    /(apache|mit|bsd|gpl|lgpl|agpl|mpl|cc-by|cc0|unlicense|wtfpl|zlib|isc|epl|cddl)/.test(
+      normalized,
+    )
+  ) {
+    return "permissive";
+  }
+  return "restricted";
+}
+
+function getLicenseCategoryLabel(category) {
+  if (category === "permissive") return "Permissive";
+  if (category === "non_commercial") return "Non-commercial";
+  if (category === "research_only") return "Research-only";
+  if (category === "restricted") return "Restricted";
+  if (category === "internal") return "Internal";
+  return "Unknown";
+}
+
+function isDatasetCompatible(dataset, profile) {
+  const policy = LICENSE_COMPATIBILITY[profile] || LICENSE_COMPATIBILITY.company;
+  const licenseCategory = getLicenseCategory(dataset.license);
+  return policy.has(licenseCategory);
+}
+
+function getCompatibilityMessage(dataset, profile) {
+  if (isDatasetCompatible(dataset, profile)) {
+    return `Compatible for ${profile} training`;
+  }
+  return `Blocked for ${profile} profile by ${dataset.license || "unknown"} license`;
 }
 
 function roundWeights(ids, rawWeights) {
@@ -110,17 +420,17 @@ function roundWeights(ids, rawWeights) {
   }
 
   let sum = 0;
-  parts.forEach((p) => {
-    rounded[p.id] = Math.floor(p.raw);
-    sum += rounded[p.id];
+  parts.forEach((part) => {
+    rounded[part.id] = Math.floor(part.raw);
+    sum += rounded[part.id];
   });
 
   let remaining = 100 - sum;
   parts
     .sort((a, b) => b.raw - Math.floor(b.raw) - (a.raw - Math.floor(a.raw)))
-    .forEach((p) => {
+    .forEach((part) => {
       if (remaining > 0) {
-        rounded[p.id] += 1;
+        rounded[part.id] += 1;
         remaining -= 1;
       }
     });
@@ -132,7 +442,7 @@ function redistributeBySelection(changedId, selectedNow) {
   if (!selectedNow) {
     delete state.weights[changedId];
 
-    const ids = [...state.selected];
+    const ids = getSelectedDatasets().map((dataset) => dataset.id);
     if (!ids.length) {
       return;
     }
@@ -155,8 +465,8 @@ function redistributeBySelection(changedId, selectedNow) {
     return;
   }
 
-  const idsBefore = [...state.selected].filter((id) => id !== changedId);
-  const idsAfter = [...state.selected];
+  const idsAfter = getSelectedDatasets().map((dataset) => dataset.id);
+  const idsBefore = idsAfter.filter((id) => id !== changedId);
 
   if (!idsBefore.length) {
     state.weights[changedId] = 100;
@@ -177,7 +487,7 @@ function redistributeBySelection(changedId, selectedNow) {
 }
 
 function setWeight(id, value) {
-  const ids = getSelectedDatasets().map((d) => d.id);
+  const ids = getSelectedDatasets().map((dataset) => dataset.id);
   if (!ids.includes(id)) return;
 
   const clamped = Math.max(0, Math.min(100, Number(value) || 0));
@@ -186,20 +496,20 @@ function setWeight(id, value) {
     return;
   }
 
-  const others = ids.filter((x) => x !== id);
-  const otherTotal = others.reduce((acc, x) => acc + (state.weights[x] || 0), 0);
+  const others = ids.filter((otherId) => otherId !== id);
+  const otherTotal = others.reduce((acc, otherId) => acc + (state.weights[otherId] || 0), 0);
   const remaining = 100 - clamped;
 
   const next = { [id]: clamped };
 
   if (otherTotal === 0) {
     const even = remaining / others.length;
-    others.forEach((x) => {
-      next[x] = even;
+    others.forEach((otherId) => {
+      next[otherId] = even;
     });
   } else {
-    others.forEach((x) => {
-      next[x] = ((state.weights[x] || 0) / otherTotal) * remaining;
+    others.forEach((otherId) => {
+      next[otherId] = ((state.weights[otherId] || 0) / otherTotal) * remaining;
     });
   }
 
@@ -207,11 +517,11 @@ function setWeight(id, value) {
 }
 
 function rebalanceEqual() {
-  const ids = getSelectedDatasets().map((d) => d.id);
+  const ids = getSelectedDatasets().map((dataset) => dataset.id);
   if (!ids.length) return;
 
-  const even = 100 / ids.length;
   const next = {};
+  const even = 100 / ids.length;
   ids.forEach((id) => {
     next[id] = even;
   });
@@ -225,18 +535,27 @@ function applyMedicinePreset() {
 }
 
 function buildRecipe() {
-  const chosen = getSelectedDatasets().map((d) => ({
-    dataset: d.name,
-    dataset_id: d.id,
-    storage_path: d.storage,
-    weight_pct: state.weights[d.id] || 0,
+  const chosen = getSelectedDatasets().map((dataset) => ({
+    dataset: dataset.name,
+    dataset_id: dataset.id,
+    source: dataset.source,
+    repo_id: dataset.repoId || dataset.id,
+    storage_path: dataset.storage,
+    license: dataset.license || "unknown",
+    license_category: getLicenseCategory(dataset.license),
+    compatible_with_profile: isDatasetCompatible(dataset, state.usageProfile),
+    weight_pct: state.weights[dataset.id] || 0,
   }));
 
   return {
     project: "DataRecipe",
     mode: modeSelectEl.value,
+    training_profile: state.usageProfile,
     target_model: modelInputEl.value.trim() || "(unset)",
-    total_weight_pct: chosen.reduce((acc, d) => acc + d.weight_pct, 0),
+    total_weight_pct: chosen.reduce((acc, dataset) => acc + dataset.weight_pct, 0),
+    incompatible_datasets_for_profile: chosen
+      .filter((dataset) => !dataset.compatible_with_profile)
+      .map((dataset) => dataset.dataset_id),
     datasets: chosen,
   };
 }
@@ -263,7 +582,7 @@ function renderBar() {
     segment.className = "segment";
     segment.style.width = `${pct}%`;
     segment.style.background = dataset.color;
-    segment.innerHTML = `<span>${dataset.name} ${pct}%</span>`;
+    segment.innerHTML = `<span>${escapeHtml(dataset.name)} ${pct}%</span>`;
     barEl.appendChild(segment);
 
     runningLeft += pct;
@@ -291,16 +610,21 @@ function renderActiveList() {
 
   selected.forEach((dataset) => {
     const pct = state.weights[dataset.id] || 0;
+    const compatible = isDatasetCompatible(dataset, state.usageProfile);
 
     const item = document.createElement("div");
-    item.className = "active-item";
+    item.className = `active-item ${compatible ? "" : "active-item-warning"}`;
     item.innerHTML = `
       <div class="active-top">
         <div class="active-name">
           <span class="dot" style="background:${dataset.color};"></span>
-          ${dataset.name}
+          ${escapeHtml(dataset.name)}
         </div>
         <span>${pct}%</span>
+      </div>
+      <div class="active-meta">
+        <span>License: ${escapeHtml(dataset.license || "unknown")}</span>
+        <span class="compat-tag ${compatible ? "ok" : "blocked"}">${escapeHtml(getCompatibilityMessage(dataset, state.usageProfile))}</span>
       </div>
       <div class="weight-row">
         <input type="range" min="0" max="100" step="1" value="${pct}" data-weight="${dataset.id}" />
@@ -311,44 +635,118 @@ function renderActiveList() {
   });
 }
 
+function renderLibraryStatus() {
+  if (!libraryStatusEl) return;
+
+  libraryStatusEl.classList.remove("loading", "error");
+
+  if (state.libraryLoading) {
+    libraryStatusEl.classList.add("loading");
+    libraryStatusEl.textContent = "Syncing datasets from Hugging Face...";
+    return;
+  }
+
+  if (state.libraryError) {
+    libraryStatusEl.classList.add("error");
+    libraryStatusEl.textContent = state.libraryError;
+    return;
+  }
+
+  const profileLabel = state.usageProfile;
+  const querySuffix = state.search.trim().length >= 2 ? ` Search: \"${state.search.trim()}\".` : "";
+  libraryStatusEl.textContent = `Loaded ${formatNumber(state.remoteDatasets.length)} Hugging Face datasets + ${formatNumber(BASE_DATASETS.length)} internal datasets. Profile: ${profileLabel}.${querySuffix}`;
+}
+
+function matchesSearch(dataset, keyword) {
+  if (!keyword) return true;
+  const haystack = [
+    dataset.name,
+    dataset.repoId,
+    dataset.domain,
+    dataset.family,
+    dataset.description,
+    dataset.license,
+    dataset.source,
+    ...(Array.isArray(dataset.tags) ? dataset.tags : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(keyword);
+}
+
 function renderLibrary() {
   datasetGridEl.innerHTML = "";
   const keyword = state.search.trim().toLowerCase();
 
-  DATASETS.filter((dataset) => {
-    if (!keyword) return true;
-    return (
-      dataset.name.toLowerCase().includes(keyword) ||
-      dataset.domain.toLowerCase().includes(keyword) ||
-      dataset.family.toLowerCase().includes(keyword)
-    );
-  }).forEach((dataset) => {
+  const datasets = getLibraryDatasets()
+    .filter((dataset) => matchesSearch(dataset, keyword))
+    .filter((dataset) => {
+      if (state.licenseFilter === "all") return true;
+      return getLicenseCategory(dataset.license) === state.licenseFilter;
+    })
+    .filter((dataset) => {
+      if (!state.showCompatibleOnly) return true;
+      return isDatasetCompatible(dataset, state.usageProfile);
+    })
+    .sort((a, b) => {
+      const aSelected = state.selected.has(a.id) ? 1 : 0;
+      const bSelected = state.selected.has(b.id) ? 1 : 0;
+      if (aSelected !== bSelected) return bSelected - aSelected;
+
+      const aCompat = isDatasetCompatible(a, state.usageProfile) ? 1 : 0;
+      const bCompat = isDatasetCompatible(b, state.usageProfile) ? 1 : 0;
+      if (aCompat !== bCompat) return bCompat - aCompat;
+
+      const scoreA = (a.downloads || 0) + (a.likes || 0) * 10;
+      const scoreB = (b.downloads || 0) + (b.likes || 0) * 10;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+
+      return a.name.localeCompare(b.name);
+    });
+
+  datasets.forEach((dataset) => {
     const isSelected = state.selected.has(dataset.id);
+    const compatible = isDatasetCompatible(dataset, state.usageProfile);
+    const blockedToAdd = !compatible && !isSelected;
+
+    const sourceLabel = dataset.source === "huggingface" ? "hf" : "internal";
+    const licenseCategory = getLicenseCategory(dataset.license);
+    const familyLabel = dataset.family || "general";
+    const downloadsLabel = dataset.source === "huggingface" ? `${formatNumber(dataset.downloads)} downloads` : "Private storage";
+    const likesLabel = dataset.source === "huggingface" ? `${formatNumber(dataset.likes)} likes` : "Curated";
+
     const card = document.createElement("article");
-    card.className = "dataset-card";
+    card.className = `dataset-card ${compatible ? "" : "disabled"}`;
 
     card.innerHTML = `
       <div class="dataset-head">
         <div>
-          <div class="dataset-name">${dataset.name}</div>
+          <div class="dataset-name">${escapeHtml(dataset.name)}</div>
+          <div class="repo-id">${escapeHtml(dataset.repoId || dataset.id)}</div>
           <div class="dataset-meta">
-            <span class="badge">${dataset.domain}</span>
-            <span>${dataset.family}</span>
+            <span class="badge tag">${escapeHtml(dataset.domain)}</span>
+            <span class="meta-pill">${escapeHtml(familyLabel)}</span>
+            <span class="meta-pill">${escapeHtml(sourceLabel)}</span>
+            <span class="license-chip ${compatible ? "ok" : "restricted"}">${escapeHtml(dataset.license || "unknown")}</span>
+            <span class="meta-pill">${escapeHtml(getLicenseCategoryLabel(licenseCategory))}</span>
           </div>
         </div>
-        <button data-toggle="${dataset.id}" class="${isSelected ? "accent" : ""}">
-          ${isSelected ? "Selected" : "Add"}
+        <button data-toggle="${escapeHtml(dataset.id)}" class="toggle-btn ${isSelected ? "accent" : ""} ${blockedToAdd ? "blocked" : ""}" ${blockedToAdd ? "disabled" : ""}>
+          ${isSelected ? "Selected" : blockedToAdd ? "Blocked" : "Add"}
         </button>
       </div>
-      <div>${dataset.description}</div>
-      <div class="storage">${dataset.storage}</div>
+      <div>${escapeHtml(dataset.description)}</div>
+      <div class="compat-note ${compatible ? "ok" : "blocked"}">${escapeHtml(getCompatibilityMessage(dataset, state.usageProfile))}</div>
+      <div class="dataset-stats">${escapeHtml(downloadsLabel)} · ${escapeHtml(likesLabel)}</div>
+      <div class="storage">${escapeHtml(dataset.storage)}</div>
     `;
 
     datasetGridEl.appendChild(card);
   });
 
   if (!datasetGridEl.children.length) {
-    datasetGridEl.innerHTML = '<div class="empty">No dataset matches that search.</div>';
+    datasetGridEl.innerHTML = '<div class="empty">No dataset matches these filters.</div>';
   }
 }
 
@@ -356,11 +754,20 @@ function renderOutput() {
   recipeOutputEl.textContent = JSON.stringify(buildRecipe(), null, 2);
 }
 
+function renderSummaryBadges() {
+  const selected = getSelectedDatasets();
+  const totalPct = selected.reduce((acc, dataset) => acc + (state.weights[dataset.id] || 0), 0);
+  if (selectedCountEl) selectedCountEl.textContent = String(selected.length);
+  if (totalPctEl) totalPctEl.textContent = `${totalPct}%`;
+}
+
 function render() {
   renderBar();
   renderActiveList();
   renderLibrary();
   renderOutput();
+  renderSummaryBadges();
+  renderLibraryStatus();
 }
 
 function startDrag(event) {
@@ -370,7 +777,7 @@ function startDrag(event) {
   const index = Number(event.currentTarget.dataset.index);
   const leftId = selected[index].id;
   const rightId = selected[index + 1].id;
-  const ids = selected.map((d) => d.id);
+  const ids = selected.map((dataset) => dataset.id);
 
   const prefixBefore = ids
     .slice(0, index)
@@ -402,7 +809,7 @@ function onDragMove(event) {
   state.weights[leftId] = clampedLeft - prefixBefore;
   state.weights[rightId] = pairTotal - state.weights[leftId];
 
-  const ids = getSelectedDatasets().map((d) => d.id);
+  const ids = getSelectedDatasets().map((dataset) => dataset.id);
   Object.assign(state.weights, roundWeights(ids, state.weights));
   render();
 }
@@ -432,6 +839,29 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "searchInput") {
     state.search = event.target.value;
     renderLibrary();
+    renderLibraryStatus();
+    queueSearchSync();
+    return;
+  }
+
+  if (event.target.id === "usageProfileSelect") {
+    state.usageProfile = event.target.value;
+    render();
+    return;
+  }
+
+  if (event.target.id === "licenseFilterSelect") {
+    state.licenseFilter = event.target.value;
+    renderLibrary();
+    renderLibraryStatus();
+    return;
+  }
+
+  if (event.target.id === "compatibleOnlyToggle") {
+    state.showCompatibleOnly = event.target.checked;
+    renderLibrary();
+    renderLibraryStatus();
+    return;
   }
 
   if (event.target.id === "modelInput" || event.target.id === "modeSelect") {
@@ -442,7 +872,16 @@ document.addEventListener("input", (event) => {
 document.addEventListener("click", (event) => {
   const toggleId = event.target.dataset.toggle;
   if (toggleId) {
-    if (state.selected.has(toggleId)) {
+    const dataset = getDatasetById(toggleId);
+    if (!dataset) return;
+
+    const alreadySelected = state.selected.has(toggleId);
+    const compatible = isDatasetCompatible(dataset, state.usageProfile);
+    if (!alreadySelected && !compatible) {
+      return;
+    }
+
+    if (alreadySelected) {
       state.selected.delete(toggleId);
       redistributeBySelection(toggleId, false);
     } else {
@@ -476,4 +915,78 @@ document.addEventListener("click", (event) => {
 });
 
 searchInputEl.value = "";
+if (usageProfileSelectEl) usageProfileSelectEl.value = state.usageProfile;
+if (licenseFilterSelectEl) licenseFilterSelectEl.value = state.licenseFilter;
+if (compatibleOnlyToggleEl) compatibleOnlyToggleEl.checked = state.showCompatibleOnly;
 render();
+syncHFDatasets();
+
+const CLUSTER_RADIUS = 36;
+const CELL_SIZE = 32;
+let cellPositions = [];
+let frameQueued = false;
+let latestMouseX = -9999;
+let latestMouseY = -9999;
+
+function buildBgGrid() {
+  const grid = document.getElementById("bgGrid");
+  if (!grid) return;
+  if (window.matchMedia("(max-width: 820px)").matches) {
+    grid.innerHTML = "";
+    cellPositions = [];
+    return;
+  }
+
+  const cols = Math.ceil(window.innerWidth / CELL_SIZE) + 1;
+  const rows = Math.ceil(window.innerHeight / CELL_SIZE) + 1;
+  const total = cols * rows;
+
+  if (grid.childElementCount !== total) {
+    grid.innerHTML = "";
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < total; i += 1) {
+      const cell = document.createElement("span");
+      cell.className = "bg-cell";
+      cell.innerHTML = '<span class="x">&times;</span><span class="recipe">%</span>';
+      frag.appendChild(cell);
+    }
+    grid.appendChild(frag);
+  }
+
+  cellPositions = Array.from(grid.querySelectorAll(".bg-cell")).map((el) => {
+    const rect = el.getBoundingClientRect();
+    return { el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 };
+  });
+}
+
+function updateBgCluster(mx, my) {
+  const radiusSquared = CLUSTER_RADIUS * CLUSTER_RADIUS;
+  for (let i = 0; i < cellPositions.length; i += 1) {
+    const cell = cellPositions[i];
+    const dx = mx - cell.cx;
+    const dy = my - cell.cy;
+    const active = dx * dx + dy * dy < radiusSquared;
+    if (active !== cell.el.classList.contains("flipped")) {
+      cell.el.classList.toggle("flipped", active);
+    }
+  }
+}
+
+document.addEventListener("mousemove", (event) => {
+  latestMouseX = event.clientX;
+  latestMouseY = event.clientY;
+  if (!frameQueued) {
+    frameQueued = true;
+    requestAnimationFrame(() => {
+      frameQueued = false;
+      updateBgCluster(latestMouseX, latestMouseY);
+    });
+  }
+});
+
+buildBgGrid();
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(buildBgGrid, 250);
+});
