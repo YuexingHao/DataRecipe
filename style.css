@@ -145,14 +145,14 @@ body {
 header.top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   padding: 30px 0 22px;
   border-bottom: 1px solid var(--line);
 }
 
 .brand-link {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
@@ -166,16 +166,32 @@ header.top {
   transform: translateY(-1px);
 }
 
-.brand-logo {
-  display: block;
-  width: clamp(150px, 17vw, 230px);
-  height: auto;
+.brand-text {
+  font-family: var(--serif);
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+  font-size: 30px;
+}
+
+.brand-text .em {
+  color: var(--hug);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.brand-text .small {
+  font-size: 18px;
+  color: var(--ink-3);
+  margin-left: 1px;
+  font-weight: 400;
 }
 
 header .nav {
   display: flex;
   gap: 24px;
-  align-items: center;
+  align-items: baseline;
 }
 
 header .nav a {
@@ -2072,10 +2088,6 @@ pre {
     align-items: flex-start;
     gap: 16px;
     padding: 26px 0 20px;
-  }
-
-  .brand-logo {
-    width: clamp(140px, 46vw, 210px);
   }
 
   header .nav {
