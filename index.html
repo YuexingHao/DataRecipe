@@ -223,7 +223,7 @@
                   <p class="label">Projection</p>
                   <h3>Predicted Performance</h3>
                 </div>
-                <div id="performanceGrade" class="performance-grade">--</div>
+                <div id="performanceGrade" class="performance-grade" tabindex="0">--</div>
               </div>
               <p id="performanceSummary" class="performance-summary">
                 Select datasets to see score.
@@ -318,7 +318,13 @@
                 />
               </label>
             </div>
-            <pre id="connectorSnippetOutput"></pre>
+            <details
+              class="payload-disclosure connector-snippet-disclosure"
+              id="connectorSnippetDisclosure"
+            >
+              <summary id="connectorSnippetSummary"># Codex command flow</summary>
+              <pre id="connectorSnippetOutput"></pre>
+            </details>
           </section>
 
           <section class="forum-share">

@@ -198,6 +198,12 @@ const PERFORMANCE_AXES = [
   { id: "robustness", label: "Robustness", logo: "RB" },
 ];
 
+const PERFORMANCE_GRADE_HELP = {
+  A: "A: Strong projected improvement with stable risk profile.",
+  B: "B: Moderate projected improvement; rebalancing can likely improve outcomes.",
+  C: "C: Higher-risk projection; recipe likely needs better balance and coverage.",
+};
+
 const BASE_AXIS_SCORES = {
   domain_alignment: 48,
   reasoning: 50,
@@ -497,6 +503,8 @@ const saveRecipeBtnEl = document.getElementById("saveRecipeBtn");
 const savedRecipesListEl = document.getElementById("savedRecipesList");
 const connectorTargetSelectEl = document.getElementById("connectorTargetSelect");
 const webhookUrlInputEl = document.getElementById("webhookUrlInput");
+const connectorSnippetDisclosureEl = document.getElementById("connectorSnippetDisclosure");
+const connectorSnippetSummaryEl = document.getElementById("connectorSnippetSummary");
 const connectorSnippetOutputEl = document.getElementById("connectorSnippetOutput");
 const finalRunScoreInputEl = document.getElementById("finalRunScoreInput");
 const runNotesInputEl = document.getElementById("runNotesInput");
@@ -2464,10 +2472,25 @@ function renderPerformanceNotesBuckets(positiveNotes = [], riskNotes = [], pendi
   `;
 }
 
+function setPerformanceGradeHelpText(currentGrade = "", loading = false) {
+  const lines = [
+    loading ? "DataRecipe is actively predicting projected performance." : "Projection grade guide.",
+    PERFORMANCE_GRADE_HELP.A,
+    PERFORMANCE_GRADE_HELP.B,
+    PERFORMANCE_GRADE_HELP.C,
+  ];
+  if (currentGrade) {
+    lines.unshift(`Current grade: ${currentGrade}`);
+  }
+  const tooltip = lines.join(" ");
+  performanceGradeEl.dataset.tooltip = tooltip;
+  performanceGradeEl.title = tooltip;
+}
+
 function renderPerformanceLoadingState() {
   performancePanelEl.classList.add("loading");
   performanceGradeEl.textContent = "...";
-  performanceGradeEl.title = "DataRecipe is actively predicting projected performance.";
+  setPerformanceGradeHelpText("", true);
   performanceGradeEl.setAttribute(
     "aria-label",
     "Projected performance is currently being calculated by DataRecipe.",
@@ -2505,7 +2528,7 @@ function renderPerformanceResult(prediction) {
       : prediction.gradeBand === "moderate"
         ? "Moderate projected performance."
         : "Higher-risk projection. This recipe likely needs rebalancing.";
-  performanceGradeEl.title = `${prediction.grade}: ${gradeMeaning}`;
+  setPerformanceGradeHelpText(prediction.grade, false);
   performanceGradeEl.setAttribute("aria-label", `Projection grade ${prediction.grade}. ${gradeMeaning}`);
   performanceSummaryEl.textContent = prediction.summary;
 
@@ -2871,8 +2894,16 @@ function publishForumPost() {
 }
 
 function renderConnectorHub() {
+  const snippet = getConnectorSnippet(state.connectorTarget);
   if (connectorSnippetOutputEl) {
-    connectorSnippetOutputEl.textContent = getConnectorSnippet(state.connectorTarget);
+    connectorSnippetOutputEl.textContent = snippet;
+  }
+  if (connectorSnippetSummaryEl) {
+    const firstLine = String(snippet || "").split("\n")[0].trim();
+    connectorSnippetSummaryEl.textContent = firstLine || "# Connector snippet";
+  }
+  if (connectorSnippetDisclosureEl && !connectorSnippetDisclosureEl.open) {
+    connectorSnippetDisclosureEl.setAttribute("aria-label", "Expand connector snippet");
   }
 }
 
