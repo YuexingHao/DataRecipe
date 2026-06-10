@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DataRecipe Forum</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./forum.css" />
+  </head>
+  <body>
+    <div class="app forum-app">
+      <header class="top">
+        <a class="brand-link" href="./index.html" aria-label="DataRecipe home">
+          <img src="./DataRecipe_Logo.svg" alt="DataRecipe" class="brand-logo" />
+        </a>
+        <nav class="nav">
+          <a href="./index.html#recipeSection">recipe</a>
+          <a href="./index.html#librarySection">datasets</a>
+          <a href="./smoke.html">smoke run</a>
+          <a href="./forum.html" class="cta">forum</a>
+        </nav>
+      </header>
+
+      <main class="forum-main">
+        <section class="panel forum-intro">
+          <div class="section-head">
+            <p class="label">Community</p>
+            <h2>Forum</h2>
+          </div>
+          <p class="forum-subtitle">Starter recipes plus your published runs.</p>
+
+          <div class="forum-toolbar">
+            <div class="forum-filters" id="forumFilters">
+              <button type="button" class="active" data-domain-filter="all">All</button>
+              <button type="button" data-domain-filter="general">General</button>
+              <button type="button" data-domain-filter="coding">Coding</button>
+              <button type="button" data-domain-filter="medicine">Medicine</button>
+              <button type="button" data-domain-filter="legal">Legal</button>
+            </div>
+            <label class="forum-search-wrap">
+              Search
+              <input
+                id="forumSearchInput"
+                type="search"
+                placeholder="Search title, model, dataset"
+              />
+            </label>
+          </div>
+
+          <div id="forumStats" class="forum-stats">Loading...</div>
+        </section>
+
+        <section class="panel">
+          <div id="forumRecipeGrid" class="forum-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./forum.js"></script>
+  </body>
+</html>

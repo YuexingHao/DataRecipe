@@ -1,0 +1,255 @@
+.smoke-app {
+  max-width: 1260px;
+}
+
+.smoke-main {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.smoke-intro {
+  padding-bottom: 16px;
+}
+
+.smoke-subtitle {
+  margin-top: 6px;
+  color: var(--ink-2);
+  max-width: 78ch;
+}
+
+.smoke-controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.smoke-controls #baselineInput {
+  width: 100%;
+}
+
+.smoke-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.smoke-actions button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #fff;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.smoke-actions button:hover {
+  color: var(--hug);
+  border-color: var(--hug);
+  background: #fff8f5;
+}
+
+.smoke-actions button.accent {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.smoke-actions button.accent:hover {
+  background: var(--hug);
+  border-color: var(--hug);
+  color: #fff;
+}
+
+.smoke-recipe-meta {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.smoke-summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.smoke-metric {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.smoke-metric-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+
+.smoke-metric-value {
+  font-family: var(--serif);
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.smoke-metric-value.positive {
+  color: var(--green-2);
+}
+
+.smoke-metric-value.risk {
+  color: var(--hug-2);
+}
+
+.smoke-metric-note {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.smoke-run-stamp {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 5px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  font-weight: 700;
+  background: #fff;
+}
+
+.smoke-table-wrap {
+  margin-top: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.smoke-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.smoke-table th,
+.smoke-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(180, 158, 128, 0.22);
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.smoke-table th {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 700;
+  background: #fdf8f2;
+}
+
+.smoke-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.smoke-delta.up {
+  color: var(--green-2);
+  font-weight: 700;
+}
+
+.smoke-delta.down {
+  color: var(--hug-2);
+  font-weight: 700;
+}
+
+.smoke-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.smoke-status.pass {
+  background: rgba(107, 142, 110, 0.14);
+  border-color: rgba(107, 142, 110, 0.4);
+  color: var(--green-2);
+}
+
+.smoke-status.fail {
+  background: rgba(196, 74, 63, 0.12);
+  border-color: rgba(196, 74, 63, 0.38);
+  color: var(--hug-2);
+}
+
+.smoke-lower-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.smoke-chip-list {
+  display: grid;
+  gap: 8px;
+}
+
+.smoke-chip {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.smoke-chip.good {
+  border-color: rgba(107, 142, 110, 0.4);
+  background: rgba(107, 142, 110, 0.08);
+}
+
+.smoke-chip.risk {
+  border-color: rgba(196, 74, 63, 0.35);
+  background: rgba(196, 74, 63, 0.07);
+}
+
+.smoke-empty {
+  color: var(--ink-2);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-style: italic;
+}
+
+@media (max-width: 860px) {
+  .smoke-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .smoke-actions button {
+    width: 100%;
+    text-align: center;
+  }
+}

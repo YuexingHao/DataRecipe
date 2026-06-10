@@ -12,13 +12,13 @@
     <div class="app">
       <header class="top">
         <a class="brand-link" href="#" aria-label="DataRecipe home">
-          <span class="brand-text"
-            >Data<span class="em">.</span><span class="small">recipe</span></span
-          >
+          <img src="./DataRecipe_Logo.svg" alt="DataRecipe" class="brand-logo" />
         </a>
         <nav class="nav">
           <a href="#recipeSection">recipe</a>
           <a href="#librarySection">datasets</a>
+          <a href="./forum.html">forum</a>
+          <a href="./smoke.html">smoke run</a>
           <a href="#outputSection" class="cta">export mix &rarr;</a>
         </nav>
       </header>
@@ -28,109 +28,68 @@
           <div class="badge">
             <span class="pulse"></span>
             <span class="badge-copy">
-              <strong id="selectedCount">4</strong>
-              <span class="badge-label">datasets selected</span>
-            </span>
-          </div>
-          <div class="badge neutral-badge">
-            <span class="badge-copy">
-              <strong id="totalPct">100%</strong>
-              <span class="badge-label">allocation locked</span>
+              <strong>10k+</strong>
+              <span class="badge-label">Dataset Available</span>
             </span>
           </div>
           <div class="badge neutral-badge live-badge">
             <span class="badge-copy">
               <strong id="recipeCount">530+</strong>
-              <span class="badge-label">unique recipes generated</span>
+              <span class="badge-label">recipes generated</span>
             </span>
           </div>
         </div>
 
-        <h1>
-          Build domain-specific
-          <span class="swap-title"><span>training</span> recipes</span>
+        <h1 class="hero-headline">
+          <span class="hero-emphasis data">DATA</span> (+ <span class="hero-emphasis recipe">RECIPE</span>) =
+          <span class="hero-emphasis models">MODELS</span>
         </h1>
-        <p class="tagline">
-          Select datasets hosted in your storage and tune the exact ratio for
-          post-training or fine-tuning pipelines.
-        </p>
-        <div class="actions">
-          <button id="medicinePreset" class="btn-primary" type="button">
-            load medicine preset
-          </button>
-          <button id="resetWeights" class="hero-secondary" type="button">
-            rebalance equally
-          </button>
-        </div>
+        <p class="tagline">Pick datasets and tune the mix for training or fine-tuning.</p>
       </section>
 
       <main class="content-grid">
-        <section class="panel" id="recipeSection">
+        <section class="panel" id="trainNeedsSection">
           <div class="section-head">
-            <p class="label">Pipeline Controls</p>
-            <h2>Recipe Mixer</h2>
+            <p class="label">Training</p>
+            <h2>What to Train</h2>
           </div>
-
-          <div class="hero-controls">
-            <label>
-              Training mode
-              <select id="modeSelect">
-                <option value="post_training">Post-training</option>
-                <option value="fine_tuning">Fine-tuning</option>
-              </select>
-            </label>
-            <label>
-              Target model or API
-              <input id="modelInput" type="text" value="open-model-8b" />
-            </label>
-          </div>
-
-          <div class="bar-wrap">
-            <div
-              id="allocationBar"
-              class="allocation-bar"
-              aria-label="dataset allocation bar"
-            ></div>
-          </div>
-          <p class="hint">
-            Drag divider handles or adjust per-dataset sliders. Total always
-            stays at 100%.
-          </p>
-
-          <div class="mixer-details">
-            <div id="activeList" class="active-list"></div>
-
-            <section class="performance-panel" id="performancePanel">
-              <div class="section-head row">
-                <div>
-                  <p class="label">Projected Evaluation</p>
-                  <h3>Predicted LLM Performance</h3>
-                </div>
-                <div id="performanceGrade" class="performance-grade">--</div>
-              </div>
-              <p id="performanceSummary" class="performance-summary">
-                Select datasets to estimate expected performance.
-              </p>
-              <div id="performanceAxes" class="performance-axes"></div>
-              <div id="performanceNotes" class="performance-notes"></div>
-            </section>
-          </div>
-        </section>
-
-        <section class="panel" id="librarySection">
-          <div class="section-head">
-            <p class="label">Storage Catalog</p>
-            <h2>Dataset Library</h2>
-          </div>
-          <div class="library-tools">
-            <input
-              id="searchInput"
-              type="search"
-              placeholder="Search Hugging Face datasets (name, tag, domain)"
-            />
+          <div class="training-needs-controls">
             <div class="filter-grid">
               <label>
-                Training profile
+                Domain
+                <select id="domainNeedSelect">
+                  <option value="all">All domains</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="finance">Finance</option>
+                  <option value="law">Law</option>
+                  <option value="coding">Coding</option>
+                  <option value="math">Math</option>
+                  <option value="general">General</option>
+                </select>
+              </label>
+              <label>
+                Priority
+                <select id="performanceNeedSelect">
+                  <option value="balanced">Balanced quality</option>
+                  <option value="domain_alignment">Domain alignment</option>
+                  <option value="reasoning">Reasoning</option>
+                  <option value="factuality">Factuality</option>
+                  <option value="instruction_following">Instruction following</option>
+                  <option value="safety_compliance">Safety & compliance</option>
+                  <option value="robustness">Robustness</option>
+                </select>
+              </label>
+              <label>
+                Group by
+                <select id="groupBySelect">
+                  <option value="domain">Domain category</option>
+                  <option value="family">Task family</option>
+                  <option value="source">Source</option>
+                  <option value="license_category">License category</option>
+                </select>
+              </label>
+              <label>
+                Profile
                 <select id="usageProfileSelect">
                   <option value="company">Company</option>
                   <option value="academia">Academia</option>
@@ -139,7 +98,7 @@
                 </select>
               </label>
               <label>
-                License filter
+                License
                 <select id="licenseFilterSelect">
                   <option value="all">All licenses</option>
                   <option value="permissive">Permissive / commercial</option>
@@ -150,12 +109,150 @@
                   <option value="internal">Internal</option>
                 </select>
               </label>
+            </div>
+            <div class="training-needs-actions">
+              <button id="medicinePreset" type="button">load dataset</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="recipeSection">
+          <div class="section-head row">
+            <div>
+              <p class="label">Controls</p>
+              <h2>Recipe Orchestration</h2>
+            </div>
+          </div>
+
+          <div class="hero-controls">
+            <label class="mode-field">
+              Mode
+              <select id="modeSelect">
+                <option value="post_training">Post-training</option>
+                <option value="fine_tuning">Fine-tuning</option>
+              </select>
+            </label>
+            <label class="target-models-field">
+              Target models
+              <div class="model-picker">
+                <div class="model-search-row">
+                  <input
+                    id="modelInput"
+                    type="search"
+                    placeholder="Search or type your own model"
+                    autocomplete="off"
+                  />
+                  <button id="addCustomModelBtn" type="button">Add</button>
+                  <button id="importModelsBtn" type="button">Import</button>
+                  <input
+                    id="importModelsFile"
+                    type="file"
+                    accept=".txt,.csv,.json"
+                    hidden
+                  />
+                </div>
+                <p class="model-help">
+                  Click Expand Model Catalog to browse open/closed-source options.
+                  Add or import your own model names anytime.
+                </p>
+                <div id="selectedModelSummary" class="selected-model-summary"></div>
+                <details id="selectedModelsPanel" class="selected-models-panel">
+                  <summary id="selectedModelsPanelSummary">View Selected Models</summary>
+                  <div id="selectedModelChips" class="selected-model-chips"></div>
+                </details>
+                <details class="model-catalog">
+                  <summary>Expand Model Catalog</summary>
+                  <div class="model-groups">
+                    <details class="model-group">
+                      <summary>Open Source Models</summary>
+                      <div
+                        id="openSourceModelChecklist"
+                        class="model-checklist"
+                      ></div>
+                    </details>
+                    <details class="model-group">
+                      <summary>Closed Source Proprietary Models</summary>
+                      <div
+                        id="closedSourceModelChecklist"
+                        class="model-checklist"
+                      ></div>
+                    </details>
+                    <details class="model-group">
+                      <summary>Your Imported Models</summary>
+                      <div id="customModelChecklist" class="model-checklist"></div>
+                    </details>
+                  </div>
+                </details>
+                <div id="modelImportStatus" class="model-import-status"></div>
+              </div>
+            </label>
+          </div>
+
+          <div class="bar-wrap">
+            <div
+              id="allocationBar"
+              class="allocation-bar"
+              aria-label="dataset allocation bar"
+            ></div>
+            <div
+              id="allocationLegend"
+              class="allocation-legend"
+              aria-label="dataset allocation list"
+            ></div>
+          </div>
+          <div class="allocation-actions">
+            <p id="allocationHint" class="hint">Current dataset size: 0 selected.</p>
+            <div class="allocation-buttons">
+              <button id="syntheticDataBtn" type="button">add synthetic</button>
+              <button id="saveWeights" type="button">Save</button>
+            </div>
+          </div>
+          <p id="allocationInsight" class="allocation-insight">
+            Hover a dataset slice to see how it adds value to your training pipeline.
+          </p>
+
+          <div class="mixer-details">
+            <div id="activeList" class="active-list"></div>
+
+            <section class="performance-panel" id="performancePanel">
+              <div class="section-head row">
+                <div>
+                  <p class="label">Projection</p>
+                  <h3>Predicted Performance</h3>
+                </div>
+                <div id="performanceGrade" class="performance-grade">--</div>
+              </div>
+              <p id="performanceSummary" class="performance-summary">
+                Select datasets to see score.
+              </p>
+              <div id="performanceAxes" class="performance-axes"></div>
+              <div id="performanceNotes" class="performance-notes"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="librarySection">
+          <div class="section-head">
+            <p class="label">Catalog</p>
+            <h2>Datasets</h2>
+          </div>
+          <div class="library-tools">
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Search datasets"
+            />
+            <div id="libraryStatus" class="library-status"></div>
+            <div class="library-filter-toggles">
               <label class="checkbox-line">
                 <input id="compatibleOnlyToggle" type="checkbox" />
-                Show only compatible datasets
+                Compatible only
+              </label>
+              <label class="checkbox-line">
+                <input id="smartRecommendOnlyToggle" type="checkbox" checked />
+                Recommended only
               </label>
             </div>
-            <div id="libraryStatus" class="library-status"></div>
           </div>
           <div id="datasetGrid" class="dataset-grid"></div>
         </section>
@@ -163,12 +260,115 @@
         <section class="panel output" id="outputSection">
           <div class="section-head row">
             <div>
-              <p class="label">Deployment Payload</p>
-              <h2>Recipe Output</h2>
+              <p class="label">Payload</p>
+              <h2>Output</h2>
             </div>
-            <button id="copyJson" type="button">Copy JSON</button>
+            <div class="output-actions">
+              <button id="copyJson" type="button">Copy JSON</button>
+            </div>
           </div>
-          <pre id="recipeOutput"></pre>
+          <div class="save-recipe-bar">
+            <input
+              id="saveRecipeName"
+              type="text"
+              placeholder="Recipe name"
+              maxlength="80"
+            />
+            <button id="saveRecipeBtn" type="button">Save</button>
+          </div>
+          <details class="payload-disclosure" id="recipePayloadDisclosure">
+            <summary>Show JSON</summary>
+            <pre id="recipeOutput"></pre>
+          </details>
+
+          <section class="connector-hub">
+            <div class="section-head row">
+              <div>
+                <p class="label">Connect</p>
+                <h3>IDE / Agent</h3>
+              </div>
+              <div class="connector-actions">
+                <button id="copyConnectorSnippet" type="button">Copy Snippet</button>
+                <button id="downloadRecipeJson" type="button">Download JSON</button>
+                <button id="downloadConnectorBundle" type="button">
+                  Download Bundle
+                </button>
+              </div>
+            </div>
+
+            <div class="connector-controls">
+              <label>
+                Target
+                <select id="connectorTargetSelect">
+                  <option value="codex">Codex</option>
+                  <option value="cursor">Cursor</option>
+                  <option value="claude">Claude</option>
+                  <option value="ide_api">IDE / API Webhook</option>
+                </select>
+              </label>
+              <label>
+                Webhook URL
+                <input
+                  id="webhookUrlInput"
+                  type="url"
+                  placeholder="https://your-trainer.example.com"
+                />
+              </label>
+            </div>
+            <pre id="connectorSnippetOutput"></pre>
+          </section>
+
+          <section class="forum-share">
+            <div class="section-head row">
+              <div>
+                <p class="label">Post-run</p>
+                <h3>Share to Forum</h3>
+              </div>
+            </div>
+
+            <div class="forum-inputs">
+              <label>
+                Final score
+                <input
+                  id="finalRunScoreInput"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="e.g. 84.2"
+                />
+              </label>
+              <label>
+                Notes
+                <textarea
+                  id="runNotesInput"
+                  rows="3"
+                  placeholder="Quick run notes..."
+                ></textarea>
+              </label>
+              <label class="checkbox-line">
+                <input id="donateRecipeToggle" type="checkbox" />
+                I agree to share this recipe + results
+              </label>
+            </div>
+            <div class="forum-actions">
+              <button id="prepareForumPostBtn" type="button">Prepare Post</button>
+              <button id="copyForumPostBtn" type="button">Copy Post</button>
+              <button id="publishForumPostBtn" type="button">Publish</button>
+              <a class="forum-link-btn" href="./forum.html">Open Forum</a>
+            </div>
+            <pre id="forumDonationOutput"></pre>
+          </section>
+
+          <section class="saved-recipes">
+            <div class="section-head row">
+              <div>
+                <p class="label">Saved</p>
+                <h3>Saved Recipes</h3>
+              </div>
+            </div>
+            <div id="savedRecipesList" class="saved-recipes-list"></div>
+          </section>
         </section>
       </main>
     </div>

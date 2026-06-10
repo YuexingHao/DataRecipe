@@ -1,0 +1,154 @@
+.forum-app {
+  max-width: 1200px;
+}
+
+.forum-main {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.forum-intro {
+  padding-bottom: 18px;
+}
+
+.forum-subtitle {
+  margin-top: 6px;
+  color: var(--ink-2);
+  max-width: 72ch;
+}
+
+.forum-toolbar {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+}
+
+.forum-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.forum-filters button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.forum-filters button.active,
+.forum-filters button:hover {
+  color: var(--hug);
+  border-color: var(--hug);
+  background: #fff8f5;
+}
+
+.forum-search-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.forum-stats {
+  margin-top: 10px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.forum-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.forum-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+
+.forum-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.forum-card-title {
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.forum-domain-chip {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-2);
+  background: #fffdf8;
+}
+
+.forum-card-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.forum-card-notes {
+  color: var(--ink-2);
+}
+
+.forum-datasets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.forum-payload details {
+  margin-top: 4px;
+}
+
+.forum-payload summary {
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.forum-payload pre {
+  margin-top: 8px;
+}
+
+.forum-empty {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+@media (max-width: 860px) {
+  .forum-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
