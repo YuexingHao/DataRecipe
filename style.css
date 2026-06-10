@@ -2021,6 +2021,24 @@ button:focus-visible {
   gap: 10px;
 }
 
+.forum-gate-status {
+  margin-top: 8px;
+  margin-bottom: 0;
+  color: var(--ink-2);
+}
+
+.forum-gate-status.ok {
+  color: #0f7a36;
+}
+
+.forum-gate-status.warn {
+  color: #9a3c02;
+}
+
+.forum-share-body {
+  margin-top: 10px;
+}
+
 .forum-inputs textarea {
   width: 100%;
   border: 1px solid var(--line);

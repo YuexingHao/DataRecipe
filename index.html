@@ -335,6 +335,9 @@
               </div>
             </div>
 
+            <p id="forumGateStatus" class="forum-gate-status">
+              Complete your run and verify it to unlock forum sharing.
+            </p>
             <div class="forum-inputs">
               <label>
                 Final score
@@ -355,18 +358,26 @@
                   placeholder="Quick run notes..."
                 ></textarea>
               </label>
-              <label class="checkbox-line">
-                <input id="donateRecipeToggle" type="checkbox" />
-                I agree to share this recipe + results
-              </label>
             </div>
             <div class="forum-actions">
-              <button id="prepareForumPostBtn" type="button">Prepare Post</button>
-              <button id="copyForumPostBtn" type="button">Copy Post</button>
-              <button id="publishForumPostBtn" type="button">Publish</button>
-              <a class="forum-link-btn" href="./forum.html">Open Forum</a>
+              <button id="verifyRunBtn" type="button">Verify Run</button>
             </div>
-            <pre id="forumDonationOutput"></pre>
+
+            <div id="forumShareBody" class="forum-share-body" hidden>
+              <div class="forum-inputs">
+                <label class="checkbox-line">
+                  <input id="donateRecipeToggle" type="checkbox" />
+                  I agree to share this recipe + results
+                </label>
+              </div>
+              <div class="forum-actions">
+                <button id="prepareForumPostBtn" type="button">Prepare Post</button>
+                <button id="copyForumPostBtn" type="button">Copy Post</button>
+                <button id="publishForumPostBtn" type="button">Publish</button>
+                <a class="forum-link-btn" href="./forum.html">Open Forum</a>
+              </div>
+              <pre id="forumDonationOutput"></pre>
+            </div>
           </section>
 
           <section class="saved-recipes">

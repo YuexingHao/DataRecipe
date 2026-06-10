@@ -472,6 +472,10 @@ const state = {
   runNotes: "",
   donateRecipe: false,
   forumPostDraft: "",
+  runVerificationStatus: "idle",
+  runVerificationMessage: "",
+  runVerificationFingerprint: "",
+  runVerifiedAt: "",
   drag: null,
   remoteDatasets: [],
   libraryLoading: false,
@@ -509,6 +513,9 @@ const connectorSnippetOutputEl = document.getElementById("connectorSnippetOutput
 const finalRunScoreInputEl = document.getElementById("finalRunScoreInput");
 const runNotesInputEl = document.getElementById("runNotesInput");
 const donateRecipeToggleEl = document.getElementById("donateRecipeToggle");
+const verifyRunBtnEl = document.getElementById("verifyRunBtn");
+const forumGateStatusEl = document.getElementById("forumGateStatus");
+const forumShareBodyEl = document.getElementById("forumShareBody");
 const forumDonationOutputEl = document.getElementById("forumDonationOutput");
 const searchInputEl = document.getElementById("searchInput");
 const modelInputEl = document.getElementById("modelInput");
@@ -1145,6 +1152,79 @@ function getForumDomainLabel(domain) {
   return DOMAIN_NEED_LABELS[domain] || "General";
 }
 
+function buildRunVerificationFingerprint() {
+  const selectedMix = getSelectedDatasets()
+    .map((dataset) => `${dataset.id}:${Number(state.weights[dataset.id] || 0).toFixed(3)}`)
+    .sort();
+
+  return JSON.stringify({
+    mode: modeSelectEl ? modeSelectEl.value : "",
+    target_models: getSelectedTargetModels(),
+    usage_profile: state.usageProfile,
+    domain_need: state.domainNeed,
+    performance_need: state.performanceNeed,
+    group_by: state.groupBy,
+    license_filter: state.licenseFilter,
+    show_compatible_only: state.showCompatibleOnly,
+    smart_recommend_only: state.smartRecommendOnly,
+    selected_mix: selectedMix,
+    final_run_score: String(state.finalRunScore || "").trim(),
+    run_notes: String(state.runNotes || "").trim(),
+  });
+}
+
+function isRunCurrentlyVerified() {
+  if (state.runVerificationStatus !== "verified") return false;
+  if (!state.runVerificationFingerprint) return false;
+  return state.runVerificationFingerprint === buildRunVerificationFingerprint();
+}
+
+function evaluateRunVerification() {
+  const selected = getSelectedDatasets();
+  if (!selected.length) {
+    return { ok: false, message: "Select at least one dataset before verification." };
+  }
+
+  const totalPct = selected.reduce((acc, dataset) => acc + Number(state.weights[dataset.id] || 0), 0);
+  if (Math.abs(totalPct - 100) > 0.5) {
+    return { ok: false, message: "Run mix must total 100% before verification." };
+  }
+
+  const finalScoreRaw = String(state.finalRunScore || "").trim();
+  const finalScore = Number(finalScoreRaw);
+  if (!finalScoreRaw || !Number.isFinite(finalScore) || finalScore < 0 || finalScore > 100) {
+    return { ok: false, message: "Enter a valid final score between 0 and 100 to verify the run." };
+  }
+
+  const notesText = String(state.runNotes || "").trim();
+  if (!notesText) {
+    return { ok: false, message: "Add run notes before verification." };
+  }
+
+  return { ok: true, message: "Run verified. Forum sharing is unlocked." };
+}
+
+function verifyCompletedRun() {
+  const verdict = evaluateRunVerification();
+  state.forumPostDraft = "";
+
+  if (!verdict.ok) {
+    state.runVerificationStatus = "failed";
+    state.runVerificationMessage = verdict.message;
+    state.runVerificationFingerprint = "";
+    state.runVerifiedAt = "";
+    renderForumDonation();
+    return false;
+  }
+
+  state.runVerificationStatus = "verified";
+  state.runVerificationFingerprint = buildRunVerificationFingerprint();
+  state.runVerifiedAt = new Date().toISOString();
+  state.runVerificationMessage = `Run verified at ${new Date(state.runVerifiedAt).toLocaleString()}.`;
+  renderForumDonation();
+  return true;
+}
+
 function syncControlValuesFromState() {
   if (usageProfileSelectEl) usageProfileSelectEl.value = state.usageProfile;
   if (domainNeedSelectEl) domainNeedSelectEl.value = state.domainNeed;
@@ -1280,6 +1360,10 @@ function applySavedRecipeCombination(record) {
   state.runNotes = String(snapshot.run_notes || "");
   state.donateRecipe = Boolean(snapshot.donate_recipe);
   state.forumPostDraft = "";
+  state.runVerificationStatus = "idle";
+  state.runVerificationMessage = "";
+  state.runVerificationFingerprint = "";
+  state.runVerifiedAt = "";
 
   modeSelectEl.value = snapshot.mode === "fine_tuning" ? "fine_tuning" : "post_training";
   state.targetModels = Array.isArray(snapshot.target_models)
@@ -2822,6 +2906,10 @@ ${apiSnippet}
 }
 
 function buildForumDonationDraft() {
+  if (!isRunCurrentlyVerified()) {
+    return "Verify a completed run before preparing a forum post.";
+  }
+
   if (!state.donateRecipe) {
     return "Enable consent, then click Prepare Post.";
   }
@@ -2841,6 +2929,7 @@ function buildForumDonationDraft() {
 - Target models: ${recipe.target_models && recipe.target_models.length ? recipe.target_models.join(", ") : recipe.target_model}
 - Predicted score: ${recipe.predicted_performance.overall_score}/100 (${recipe.predicted_performance.grade})
 - Final run score: ${finalScoreText || "Not reported"}
+- Verification: ${state.runVerifiedAt ? `verified at ${new Date(state.runVerifiedAt).toLocaleString()}` : "verified"}
 
 ## Dataset Mix
 ${selectedRows || "- No datasets selected"}
@@ -2879,12 +2968,18 @@ function buildForumPostRecord() {
     notes: notesText,
     datasets: recipe.datasets,
     payload: recipe,
+    verification: {
+      status: "verified",
+      verified_at: state.runVerifiedAt || new Date().toISOString(),
+      fingerprint: state.runVerificationFingerprint,
+    },
     created_at: new Date().toISOString(),
     source: "user",
   };
 }
 
 function publishForumPost() {
+  if (!isRunCurrentlyVerified()) return false;
   if (!state.donateRecipe) return false;
   const posts = readForumPosts();
   const record = buildForumPostRecord();
@@ -2908,13 +3003,44 @@ function renderConnectorHub() {
 }
 
 function renderForumDonation() {
+  const verified = isRunCurrentlyVerified();
+
+  if (forumShareBodyEl) {
+    forumShareBodyEl.hidden = !verified;
+  }
+
+  if (verifyRunBtnEl) {
+    verifyRunBtnEl.textContent = verified ? "Run Verified" : "Verify Run";
+  }
+
+  if (forumGateStatusEl) {
+    forumGateStatusEl.classList.remove("ok", "warn");
+    if (verified) {
+      forumGateStatusEl.classList.add("ok");
+      forumGateStatusEl.textContent =
+        state.runVerificationMessage || "Run verified. Forum sharing is unlocked.";
+    } else if (state.runVerificationStatus === "verified") {
+      forumGateStatusEl.classList.add("warn");
+      forumGateStatusEl.textContent = "Run details changed. Verify again to unlock forum sharing.";
+    } else if (state.runVerificationStatus === "failed") {
+      forumGateStatusEl.classList.add("warn");
+      forumGateStatusEl.textContent = state.runVerificationMessage || "Run verification failed.";
+    } else {
+      forumGateStatusEl.textContent = "Complete your run and verify it to unlock forum sharing.";
+    }
+  }
+
   if (!forumDonationOutputEl) return;
+  if (!verified) {
+    forumDonationOutputEl.textContent = "Verify a completed run to generate a forum post.";
+    return;
+  }
   if (state.forumPostDraft) {
     forumDonationOutputEl.textContent = state.forumPostDraft;
     return;
   }
   forumDonationOutputEl.textContent =
-    "Add score and notes, enable consent, then click Prepare Post.";
+    "Enable consent, then click Prepare Post.";
 }
 
 function renderAllocationLegend() {
@@ -3786,13 +3912,26 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  if (event.target.id === "verifyRunBtn") {
+    verifyCompletedRun();
+    return;
+  }
+
   if (event.target.id === "prepareForumPostBtn") {
+    if (!isRunCurrentlyVerified()) {
+      flashButtonLabel(event.target, "Verify Run First", "Prepare Post");
+      return;
+    }
     prepareForumDonationPost();
     flashButtonLabel(event.target, "Prepared", "Prepare Post");
     return;
   }
 
   if (event.target.id === "copyForumPostBtn") {
+    if (!isRunCurrentlyVerified()) {
+      flashButtonLabel(event.target, "Verify Run First", "Copy Post");
+      return;
+    }
     if (!state.donateRecipe) {
       flashButtonLabel(event.target, "Enable Consent", "Copy Post");
       return;
@@ -3807,6 +3946,10 @@ document.addEventListener("click", (event) => {
   }
 
   if (event.target.id === "publishForumPostBtn") {
+    if (!isRunCurrentlyVerified()) {
+      flashButtonLabel(event.target, "Verify Run First", "Publish");
+      return;
+    }
     if (!state.donateRecipe) {
       flashButtonLabel(event.target, "Enable Consent", "Publish");
       return;
